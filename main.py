@@ -1,20 +1,24 @@
 import scipy.io as spio
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 import SeanFunc as SF
+from os.path import dirname,realpath, join as pjoin
 
+dir_path = dirname(realpath(__file__))
+DataFileLocations = dir_path + '/DataFiles'
 FilesNames = ['NonDrugDayProcessedData_SubjectH_63_Sessions21-Aug-2020.mat','NonDrugDayProcessedData_SubjectA_41_Sessions21-Aug-2020.mat']
 Subjects =['Monkey H','Monkey A']
-EvidenceUnitsA_acrossSessions, EvidenceUnitsB_acrossSessions, Choices_acrossSessions,LongSampleTrial, \
-    resp_trials,TrialType,DiscardTrials,TrialError,TrialErCompTr,IndexOfTrToUseFromRT,IndexOfTrToUseFromAllTr,CV_OutputValues =\
-    [None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2
 
-for i in [0,1]:
-    print('Processing data for ' + Subjects[i])
+#pre-assign empty variables for useful outputs to be stored
+EvidenceUnitsA_acrossSessions, EvidenceUnitsB_acrossSessions, Choices_acrossSessions,LongSampleTrial, \
+    resp_trials,TrialType,DiscardTrials,TrialError,TrialErCompTr,IndexOfTrToUseFromRT,IndexOfTrToUseFromAllTr,CV_OutputValues,libDD =\
+    [None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2,[None]*2
+print('Analysing standard day sessions')
+
+for i in [0,1]: #loop across the two subjects
+    print('     Processing data for ' + Subjects[i])
 
     #Load the matlab data
-    lib = spio.loadmat(FilesNames[i])
+    lib = spio.loadmat(pjoin(DataFileLocations,FilesNames[i]))
 
     #Extract the key variables from matlab structure
     # Reorganise the variables to collapse the data across sessions
@@ -38,7 +42,7 @@ for i in [0,1]:
 
     #Supplementary tables from paper: Further regression analyses and model comparisson
     BootStrapNo=0 #fit the regression with a lapse term (only relevant for subsequent analyses so set to 0 here)
-    n_kcv_runs = 5 # How many cross-validation runs to run? Note, in the paper, this was set to 100. It has been set to 5 here to decrease computing time.
+    n_kcv_runs = 2 # How many cross-validation runs to run? Note, in the paper, this was set to 100. It has been set to 2 here to decrease computing time.
     CV_OutputValues[i] = SF.AdvancedRegrAnalysis(Choices_acrossSessions[i][IndexOfTrToUseFromRT[i]][TrialType[i][IndexOfTrToUseFromAllTr[i]]==1],\
         EvidenceUnitsA_acrossSessions[i][IndexOfTrToUseFromRT[i],:][TrialType[i][IndexOfTrToUseFromAllTr[i]]==1,:],
         EvidenceUnitsB_acrossSessions[i][IndexOfTrToUseFromRT[i], :][TrialType[i][IndexOfTrToUseFromAllTr[i]] == 1, :],
@@ -60,4 +64,33 @@ SF.MakeFig4(ChoicesCollapsed[TrTypeCollapsed==1],EvidUnitsACollapsed[TrTypeColla
 
 #Supplementary tables- format the cross-validation results as tables
 SF.MakeSupTables(CV_OutputValues,Subjects)
-print('end of code')
+
+#Code for Figure 8
+BootStrapNo = 0 #Bootstrap number to generate error estimates for parameters in the lapsing models. Note, in the paper, this was set to 10000. It has been set to 0 here, which reloads the pre-generated parameters
+noPermutations = 0 #Permutation number to compare ketamine and saline parameter estimates for parameters in the lapsing models. Note, in the paper, this was set to 10000. It has been set to 0 here, which reloads the pre-generated parameters
+
+DirToSaveBootstraps = DataFileLocations + '/Bootstrap_Permutation_Data'
+DD_FileNames = ['DrugDayProcessedDataSubjectH22-Aug-2020.mat','DrugDayProcessedDataSubjectA12-Feb-2020.mat']
+for i in [0,1]:
+    #Load the matlab data
+    libDD[i] = spio.loadmat(pjoin(DataFileLocations,DD_FileNames[i]))
+
+#Extract key variables
+OverallDataStructure = np.append(libDD[0]['DrugDayStructure'],libDD[1]['DrugDayStructure'])
+ChosenTarget = np.concatenate(OverallDataStructure['ChosenTarget'],axis=1)
+NoSessions = (libDD[0]['DrugDayStructure']['ChosenTarget']).shape[1] + (libDD[1]['DrugDayStructure']['ChosenTarget']).shape[1]
+
+# Analyse the data for each individual session
+BinnedAnalysis = np.zeros((NoSessions,81)) #Organise a matrix, to store performance data in each time bin
+OutputDMHere=[[0 for j in range(81)]for i in range(NoSessions)] # %Organise a cell array to store design matricies for each time point: Number of Sessions x 81 time points
+SessionWiseDMs = [None]*NoSessions
+
+# Loop across sessions
+print('Analysing drug day sessions')
+for i in range(0,NoSessions):
+    SessionWiseDMs[i], BinnedAnalysis[i,:], OutputDMHere[i] = SF.AnalyseWithinSessionDrugDayData(OverallDataStructure[i])
+
+KetamineSes,SalineSes = SF.FindSessionsToInclude(SessionWiseDMs,OverallDataStructure)
+
+SF.MakeFig8(BinnedAnalysis,SessionWiseDMs,KetamineSes,SalineSes,BootStrapNo,noPermutations)
+print('Analyses complete')

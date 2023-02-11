@@ -14,6 +14,8 @@ Run <b>main.py</b> to produce the figures, which will output in PDF format. The 
 The following data files are required:
  - <i>NonDrugDayProcessedData_SubjectA_41_Sessions21-Aug-2020.mat</i>
  - <i>NonDrugDayProcessedData_SubjectH_63_Sessions21-Aug-2020.mat</i>
+ - <i>DrugDayProcessedDataSubjectA12-Feb-2020.mat</i>
+ - <i>DrugDayProcessedDataSubjectH22-Aug-2020.mat</i>
 
 ## Scientific Overview of the Project
 A subanaesthetic dose of ketamine is an effective pharmacological model of psychosis; recapitulating positive, negative and cognitive symptoms. Ketamine also exacerbates symptoms in people with schizophrenia. Ketamine binds to a variety of receptors, but principally acts at the NMDA-R. To gain a greater understanding of the neural basis of psychosis, we designed a study incorporating behavioural analyses, electrophysiology, pharmacology, and neural network modelling.
